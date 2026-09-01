@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# usb-off.sh - Dynamically locate, unbind driver, and suspend power for "GiN mbH" USB devices
+# usb-off.sh - Dynamically locate, cut USB port power, unbind driver, and suspend power for "GiN mbH" USB devices
 
 # Function: find_gin_usb_device
 # Scans /sys/bus/usb/devices/ (or $SYS_USB_DIR if testing) for any connected USB device
@@ -55,7 +55,7 @@ if [ -f "$dev_path/power/wakeup" ]; then
     _sysfs_write disabled "$dev_path/power/wakeup"
 fi
 
-# 3. Turn off / suspend power to the USB device
+# 3. Turn off / suspend power to the USB device in sysfs
 # Modern kernels use /sys/bus/usb/devices/.../power/control (values: 'auto' to suspend, or 'on').
 # Older kernels used /sys/bus/usb/devices/.../power/level (values: 'suspend' or 'on').
 if [ -f "$dev_path/power/control" ]; then
@@ -64,9 +64,19 @@ elif [ -f "$dev_path/power/level" ]; then
     _sysfs_write suspend "$dev_path/power/level"
 fi
 
-# 4. Unbind driver to safely disconnect and turn off USB device functionality on Ubuntu Linux
+# 4. Cut physical USB port power if supported by kernel sysfs ($dev_path/disable file: 1 = disabled)
+if [ -f "$dev_path/disable" ]; then
+    _sysfs_write 1 "$dev_path/disable"
+fi
+
+# 5. Unbind driver to safely disconnect USB device functionality on Ubuntu Linux
 if [ -f "$sys_drivers_dir/unbind" ]; then
     _sysfs_write "$dev_name" "$sys_drivers_dir/unbind"
+fi
+
+# 6. If uhubctl is available on the system, turn off physical port power via uhubctl
+if command -v uhubctl >/dev/null 2>&1; then
+    sudo uhubctl -l "$dev_name" -a off >/dev/null 2>&1 || true
 fi
 
 echo "$dev_upper is now OFF."

@@ -22,14 +22,15 @@ echo "Generic USB Hub" > "$SYS_USB_DIR/1-1/manufacturer"
 echo "enabled" > "$SYS_USB_DIR/1-1/power/wakeup"
 echo "auto" > "$SYS_USB_DIR/1-1/power/control"
 
-# Create mock USB device 2 (GiN mbH with power/control attribute)
+# Create mock USB device 2 (GiN mbH with power/control and disable attribute)
 mkdir -p "$SYS_USB_DIR/2-1/power"
 echo "GiN mbH" > "$SYS_USB_DIR/2-1/manufacturer"
 echo "GiN CAN Bus Interface" > "$SYS_USB_DIR/2-1/product"
 echo "enabled" > "$SYS_USB_DIR/2-1/power/wakeup"
 echo "on" > "$SYS_USB_DIR/2-1/power/control"
+echo "0" > "$SYS_USB_DIR/2-1/disable"
 
-echo "--- Testing usb-off.sh with power/control and driver unbind ---"
+echo "--- Testing usb-off.sh with power/control, driver unbind, and port disable ---"
 OUTPUT_OFF=$(./usb-off.sh)
 echo "$OUTPUT_OFF"
 
@@ -43,12 +44,17 @@ if [[ $(cat "$SYS_USB_DIR/2-1/power/control") != "auto" ]]; then
     exit 1
 fi
 
+if [[ $(cat "$SYS_USB_DIR/2-1/disable") != "1" ]]; then
+    echo "ERROR: 2-1 disable was not set to 1!" >&2
+    exit 1
+fi
+
 if [[ $(cat "$SYS_DRIVERS_DIR/unbind") != "2-1" ]]; then
     echo "ERROR: 2-1 was not written to driver unbind file!" >&2
     exit 1
 fi
 
-echo "--- Testing usb-on.sh with power/control and driver bind ---"
+echo "--- Testing usb-on.sh with power/control, driver bind, and port enable ---"
 OUTPUT_ON=$(./usb-on.sh)
 echo "$OUTPUT_ON"
 
@@ -59,6 +65,11 @@ fi
 
 if [[ $(cat "$SYS_USB_DIR/2-1/power/control") != "on" ]]; then
     echo "ERROR: 2-1 power/control was not set to on!" >&2
+    exit 1
+fi
+
+if [[ $(cat "$SYS_USB_DIR/2-1/disable") != "0" ]]; then
+    echo "ERROR: 2-1 disable was not set to 0!" >&2
     exit 1
 fi
 

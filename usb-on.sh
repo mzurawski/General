@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# usb-on.sh - Dynamically locate and enable power / re-bind driver for "GiN mbH" USB devices
+# usb-on.sh - Dynamically locate, enable USB port power, and re-bind driver for "GiN mbH" USB devices
 
 # Function: find_gin_usb_device
 # Scans /sys/bus/usb/devices/ (or $SYS_USB_DIR if testing) for any connected USB device
@@ -50,12 +50,17 @@ dev_name=$(basename "$dev_path")
 dev_upper=$(echo "$dev_name" | tr '[:lower:]' '[:upper:]')
 sys_drivers_dir="${SYS_DRIVERS_DIR:-/sys/bus/usb/drivers/usb}"
 
-# 2. Disable wakeup if supported by the device sysfs interface
+# 2. Enable physical USB port power if supported by kernel sysfs ($dev_path/disable file: 0 = enabled)
+if [ -f "$dev_path/disable" ]; then
+    _sysfs_write 0 "$dev_path/disable"
+fi
+
+# 3. Disable wakeup if supported by the device sysfs interface
 if [ -f "$dev_path/power/wakeup" ]; then
     _sysfs_write disabled "$dev_path/power/wakeup"
 fi
 
-# 3. Enable USB power control
+# 4. Enable USB power control in sysfs
 # Modern kernels use /sys/bus/usb/devices/.../power/control (values: 'on' or 'auto').
 # Older kernels used /sys/bus/usb/devices/.../power/level (values: 'on' or 'suspend').
 if [ -f "$dev_path/power/control" ]; then
@@ -64,9 +69,14 @@ elif [ -f "$dev_path/power/level" ]; then
     _sysfs_write on "$dev_path/power/level"
 fi
 
-# 4. Bind driver to re-enable and initialize the USB device in Linux
+# 5. Bind driver to re-enable and initialize the USB device in Linux
 if [ -f "$sys_drivers_dir/bind" ]; then
     _sysfs_write "$dev_name" "$sys_drivers_dir/bind"
+fi
+
+# 6. If uhubctl is available on the system, toggle port power via uhubctl
+if command -v uhubctl >/dev/null 2>&1; then
+    sudo uhubctl -l "$dev_name" -a on >/dev/null 2>&1 || true
 fi
 
 echo "$dev_upper is now ON."
