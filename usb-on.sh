@@ -43,10 +43,10 @@ if [ -f "$dev_path/power/wakeup" ]; then
     _sysfs_write disabled "$dev_path/power/wakeup"
 fi
 
-if [ -f "$dev_path/power/level" ]; then
-    _sysfs_write on "$dev_path/power/level"
-elif [ -f "$dev_path/power/control" ]; then
+if [ -f "$dev_path/power/control" ]; then
     _sysfs_write on "$dev_path/power/control"
+elif [ -f "$dev_path/power/level" ]; then
+    _sysfs_write on "$dev_path/power/level"
 fi
 
 echo "$dev_upper is now ON."
