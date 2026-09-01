@@ -11,6 +11,7 @@ trap 'rm -rf "$TEST_DIR"' EXIT
 
 export SYS_USB_DIR="$TEST_DIR/sys/bus/usb/devices"
 export SYS_DRIVERS_DIR="$TEST_DIR/sys/bus/usb/drivers/usb"
+export GIN_USB_STATE_FILE="$TEST_DIR/gin_usb_device"
 mkdir -p "$SYS_USB_DIR"
 mkdir -p "$SYS_DRIVERS_DIR"
 touch "$SYS_DRIVERS_DIR/bind"
@@ -30,7 +31,7 @@ echo "enabled" > "$SYS_USB_DIR/2-1/power/wakeup"
 echo "on" > "$SYS_USB_DIR/2-1/power/control"
 echo "0" > "$SYS_USB_DIR/2-1/disable"
 
-echo "--- Testing usb-off.sh with power/control, driver unbind, and port disable ---"
+echo "--- Testing usb-off.sh with power/control, driver unbind, and state persistence ---"
 OUTPUT_OFF=$(./usb-off.sh)
 echo "$OUTPUT_OFF"
 
@@ -44,17 +45,16 @@ if [[ $(cat "$SYS_USB_DIR/2-1/power/control") != "auto" ]]; then
     exit 1
 fi
 
-if [[ $(cat "$SYS_USB_DIR/2-1/disable") != "1" ]]; then
-    echo "ERROR: 2-1 disable was not set to 1!" >&2
+if [[ $(cat "$GIN_USB_STATE_FILE") != "2-1" ]]; then
+    echo "ERROR: State file was not saved with 2-1!" >&2
     exit 1
 fi
 
-if [[ $(cat "$SYS_DRIVERS_DIR/unbind") != "2-1" ]]; then
-    echo "ERROR: 2-1 was not written to driver unbind file!" >&2
-    exit 1
-fi
+# Simulate kernel de-enumeration (e.g. manufacturer file disappearing after unbind/power off)
+rm -f "$SYS_USB_DIR/2-1/manufacturer"
+rm -f "$SYS_USB_DIR/2-1/product"
 
-echo "--- Testing usb-on.sh with power/control, driver bind, and port enable ---"
+echo "--- Testing usb-on.sh using persisted state file when de-enumerated ---"
 OUTPUT_ON=$(./usb-on.sh)
 echo "$OUTPUT_ON"
 
@@ -68,18 +68,12 @@ if [[ $(cat "$SYS_USB_DIR/2-1/power/control") != "on" ]]; then
     exit 1
 fi
 
-if [[ $(cat "$SYS_USB_DIR/2-1/disable") != "0" ]]; then
-    echo "ERROR: 2-1 disable was not set to 0!" >&2
-    exit 1
-fi
-
-if [[ $(cat "$SYS_DRIVERS_DIR/bind") != "2-1" ]]; then
-    echo "ERROR: 2-1 was not written to driver bind file!" >&2
+if [[ -f "$GIN_USB_STATE_FILE" ]]; then
+    echo "ERROR: State file was not cleaned up after usb-on.sh!" >&2
     exit 1
 fi
 
 # Test legacy power/level attribute
-rm -rf "$SYS_USB_DIR/2-1"
 mkdir -p "$SYS_USB_DIR/3-1/power"
 echo "GiN mbH" > "$SYS_USB_DIR/3-1/manufacturer"
 echo "on" > "$SYS_USB_DIR/3-1/power/level"
@@ -101,6 +95,7 @@ fi
 
 # Test when no GiN mbH device is present
 rm -rf "$SYS_USB_DIR/3-1"
+rm -f "$GIN_USB_STATE_FILE"
 echo "--- Testing device not found ---"
 if ./usb-on.sh 2>/dev/null; then
     echo "ERROR: usb-on.sh should have failed when device not present!" >&2

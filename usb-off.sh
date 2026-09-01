@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # usb-off.sh - Dynamically locate, cut USB port power, unbind driver, and suspend power for "GiN mbH" USB devices
 
+STATE_FILE="${GIN_USB_STATE_FILE:-/tmp/gin_usb_device}"
+
 # Function: find_gin_usb_device
 # Scans /sys/bus/usb/devices/ (or $SYS_USB_DIR if testing) for any connected USB device
 # whose manufacturer or product sysfs attribute matches "GiN mbH".
@@ -39,16 +41,23 @@ _sysfs_write() {
     fi
 }
 
-# 1. Locate the GiN mbH USB device sysfs directory
+sys_usb_dir="${SYS_USB_DIR:-/sys/bus/usb/devices}"
+sys_drivers_dir="${SYS_DRIVERS_DIR:-/sys/bus/usb/drivers/usb}"
+
+# 1. Locate the GiN mbH USB device sysfs directory or read from state file
 dev_path=$(find_gin_usb_device)
-if [ -z "$dev_path" ]; then
+if [ -z "$dev_path" ] && [ -f "$STATE_FILE" ]; then
+    dev_name=$(cat "$STATE_FILE")
+    dev_path="$sys_usb_dir/$dev_name"
+elif [ -n "$dev_path" ]; then
+    dev_name=$(basename "$dev_path")
+    echo "$dev_name" > "$STATE_FILE" 2>/dev/null || true
+else
     echo "GiN mbH USB device not found." >&2
     exit 1
 fi
 
-dev_name=$(basename "$dev_path")
 dev_upper=$(echo "$dev_name" | tr '[:lower:]' '[:upper:]')
-sys_drivers_dir="${SYS_DRIVERS_DIR:-/sys/bus/usb/drivers/usb}"
 
 # 2. Disable wakeup if supported by the device sysfs interface
 if [ -f "$dev_path/power/wakeup" ]; then
@@ -76,7 +85,7 @@ fi
 
 # 6. If uhubctl is available on the system, turn off physical port power via uhubctl
 if command -v uhubctl >/dev/null 2>&1; then
-    sudo uhubctl -l "$dev_name" -a off >/dev/null 2>&1 || true
+    sudo uhubctl -l "$dev_name" -a off >/dev/null 2>&1 || sudo uhubctl -a off >/dev/null 2>&1 || true
 fi
 
 echo "$dev_upper is now OFF."
