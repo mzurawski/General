@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # usb-off.sh - Dynamically locate, cut USB port power, unbind driver, and suspend power for "GiN mbH" USB devices
 
 STATE_FILE="${GIN_USB_STATE_FILE:-/tmp/gin_usb_device}"

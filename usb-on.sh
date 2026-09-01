@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # usb-on.sh - Dynamically locate, enable USB port power, and re-bind driver for "GiN mbH" USB devices
 
 STATE_FILE="${GIN_USB_STATE_FILE:-/tmp/gin_usb_device}"
