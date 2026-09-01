@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# usb-off.sh - Dynamically locate and suspend/turn off power for "GiN mbH" USB devices
+# usb-off.sh - Dynamically locate, unbind driver, and suspend power for "GiN mbH" USB devices
 
 # Function: find_gin_usb_device
 # Scans /sys/bus/usb/devices/ (or $SYS_USB_DIR if testing) for any connected USB device
@@ -48,6 +48,7 @@ fi
 
 dev_name=$(basename "$dev_path")
 dev_upper=$(echo "$dev_name" | tr '[:lower:]' '[:upper:]')
+sys_drivers_dir="${SYS_DRIVERS_DIR:-/sys/bus/usb/drivers/usb}"
 
 # 2. Disable wakeup if supported by the device sysfs interface
 if [ -f "$dev_path/power/wakeup" ]; then
@@ -56,12 +57,16 @@ fi
 
 # 3. Turn off / suspend power to the USB device
 # Modern kernels use /sys/bus/usb/devices/.../power/control (values: 'auto' to suspend, or 'on').
-# Note: Writing 'suspend' to power/control causes 'Invalid argument' (EINVAL).
 # Older kernels used /sys/bus/usb/devices/.../power/level (values: 'suspend' or 'on').
 if [ -f "$dev_path/power/control" ]; then
     _sysfs_write auto "$dev_path/power/control"
 elif [ -f "$dev_path/power/level" ]; then
     _sysfs_write suspend "$dev_path/power/level"
+fi
+
+# 4. Unbind driver to safely disconnect and turn off USB device functionality on Ubuntu Linux
+if [ -f "$sys_drivers_dir/unbind" ]; then
+    _sysfs_write "$dev_name" "$sys_drivers_dir/unbind"
 fi
 
 echo "$dev_upper is now OFF."

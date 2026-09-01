@@ -10,7 +10,11 @@ TEST_DIR=$(mktemp -d)
 trap 'rm -rf "$TEST_DIR"' EXIT
 
 export SYS_USB_DIR="$TEST_DIR/sys/bus/usb/devices"
+export SYS_DRIVERS_DIR="$TEST_DIR/sys/bus/usb/drivers/usb"
 mkdir -p "$SYS_USB_DIR"
+mkdir -p "$SYS_DRIVERS_DIR"
+touch "$SYS_DRIVERS_DIR/bind"
+touch "$SYS_DRIVERS_DIR/unbind"
 
 # Create mock USB device 1 (Other vendor)
 mkdir -p "$SYS_USB_DIR/1-1/power"
@@ -25,7 +29,7 @@ echo "GiN CAN Bus Interface" > "$SYS_USB_DIR/2-1/product"
 echo "enabled" > "$SYS_USB_DIR/2-1/power/wakeup"
 echo "on" > "$SYS_USB_DIR/2-1/power/control"
 
-echo "--- Testing usb-off.sh with power/control ---"
+echo "--- Testing usb-off.sh with power/control and driver unbind ---"
 OUTPUT_OFF=$(./usb-off.sh)
 echo "$OUTPUT_OFF"
 
@@ -39,7 +43,12 @@ if [[ $(cat "$SYS_USB_DIR/2-1/power/control") != "auto" ]]; then
     exit 1
 fi
 
-echo "--- Testing usb-on.sh with power/control ---"
+if [[ $(cat "$SYS_DRIVERS_DIR/unbind") != "2-1" ]]; then
+    echo "ERROR: 2-1 was not written to driver unbind file!" >&2
+    exit 1
+fi
+
+echo "--- Testing usb-on.sh with power/control and driver bind ---"
 OUTPUT_ON=$(./usb-on.sh)
 echo "$OUTPUT_ON"
 
@@ -50,6 +59,11 @@ fi
 
 if [[ $(cat "$SYS_USB_DIR/2-1/power/control") != "on" ]]; then
     echo "ERROR: 2-1 power/control was not set to on!" >&2
+    exit 1
+fi
+
+if [[ $(cat "$SYS_DRIVERS_DIR/bind") != "2-1" ]]; then
+    echo "ERROR: 2-1 was not written to driver bind file!" >&2
     exit 1
 fi
 
