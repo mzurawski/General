@@ -1,6 +1,8 @@
 # USB Power Control Functions
+# Convenience wrappers/macros in bashrc that execute standalone scripts usb-on.sh and usb-off.sh
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Turn on GiN mbH USB device power
 usb-on() {
     if [ -x "$SCRIPT_DIR/usb-on.sh" ]; then
         "$SCRIPT_DIR/usb-on.sh"
@@ -12,6 +14,7 @@ usb-on() {
     fi
 }
 
+# Turn off / suspend GiN mbH USB device power
 usb-off() {
     if [ -x "$SCRIPT_DIR/usb-off.sh" ]; then
         "$SCRIPT_DIR/usb-off.sh"
