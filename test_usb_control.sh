@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
+# Mock sudo to fail if called when files are writable
 sudo() {
+    echo "sudo called: $@"
     "$@"
 }
 export -f sudo

@@ -20,6 +20,16 @@ find_gin_usb_device() {
     return 1
 }
 
+_sysfs_write() {
+    local val="$1"
+    local target="$2"
+    if [ -w "$target" ]; then
+        echo "$val" > "$target" 2>/dev/null
+    else
+        echo "$val" | sudo tee "$target" > /dev/null
+    fi
+}
+
 usb-on() {
     local dev_path
     dev_path=$(find_gin_usb_device)
@@ -33,13 +43,13 @@ usb-on() {
     dev_upper=$(echo "$dev_name" | tr '[:lower:]' '[:upper:]')
 
     if [ -f "$dev_path/power/wakeup" ]; then
-        echo disabled | sudo tee "$dev_path/power/wakeup" > /dev/null
+        _sysfs_write disabled "$dev_path/power/wakeup"
     fi
 
     if [ -f "$dev_path/power/level" ]; then
-        echo on | sudo tee "$dev_path/power/level" > /dev/null
+        _sysfs_write on "$dev_path/power/level"
     elif [ -f "$dev_path/power/control" ]; then
-        echo on | sudo tee "$dev_path/power/control" > /dev/null
+        _sysfs_write on "$dev_path/power/control"
     fi
 
     echo "$dev_upper is now ON."
@@ -58,13 +68,13 @@ usb-off() {
     dev_upper=$(echo "$dev_name" | tr '[:lower:]' '[:upper:]')
 
     if [ -f "$dev_path/power/wakeup" ]; then
-        echo disabled | sudo tee "$dev_path/power/wakeup" > /dev/null
+        _sysfs_write disabled "$dev_path/power/wakeup"
     fi
 
     if [ -f "$dev_path/power/level" ]; then
-        echo suspend | sudo tee "$dev_path/power/level" > /dev/null
+        _sysfs_write suspend "$dev_path/power/level"
     elif [ -f "$dev_path/power/control" ]; then
-        echo suspend | sudo tee "$dev_path/power/control" > /dev/null
+        _sysfs_write suspend "$dev_path/power/control"
     fi
 
     echo "$dev_upper is now OFF."
