@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-# Mock sudo to fail if called when files are writable
 sudo() {
-    echo "sudo called: $@"
     "$@"
 }
 export -f sudo
@@ -27,15 +25,12 @@ echo "GiN CAN Bus Interface" > "$SYS_USB_DIR/2-1/product"
 echo "enabled" > "$SYS_USB_DIR/2-1/power/wakeup"
 echo "suspend" > "$SYS_USB_DIR/2-1/power/level"
 
-# Source the bashrc script
-source ./bashrc
-
-echo "--- Testing usb-on ---"
-OUTPUT_ON=$(usb-on)
+echo "--- Testing usb-on.sh directly ---"
+OUTPUT_ON=$(./usb-on.sh)
 echo "$OUTPUT_ON"
 
 if [[ "$OUTPUT_ON" != *"2-1 is now ON."* ]]; then
-    echo "ERROR: usb-on output mismatch!" >&2
+    echo "ERROR: usb-on.sh output mismatch!" >&2
     exit 1
 fi
 
@@ -49,17 +44,34 @@ if [[ $(cat "$SYS_USB_DIR/2-1/power/level") != "on" ]]; then
     exit 1
 fi
 
-echo "--- Testing usb-off ---"
-OUTPUT_OFF=$(usb-off)
+echo "--- Testing usb-off.sh directly ---"
+OUTPUT_OFF=$(./usb-off.sh)
 echo "$OUTPUT_OFF"
 
 if [[ "$OUTPUT_OFF" != *"2-1 is now OFF."* ]]; then
-    echo "ERROR: usb-off output mismatch!" >&2
+    echo "ERROR: usb-off.sh output mismatch!" >&2
     exit 1
 fi
 
 if [[ $(cat "$SYS_USB_DIR/2-1/power/level") != "suspend" ]]; then
     echo "ERROR: 2-1 power/level was not set to suspend!" >&2
+    exit 1
+fi
+
+echo "--- Testing bashrc wrapper functions ---"
+source ./bashrc
+
+OUTPUT_WRAPPER_ON=$(usb-on)
+echo "$OUTPUT_WRAPPER_ON"
+if [[ "$OUTPUT_WRAPPER_ON" != *"2-1 is now ON."* ]]; then
+    echo "ERROR: bashrc usb-on wrapper output mismatch!" >&2
+    exit 1
+fi
+
+OUTPUT_WRAPPER_OFF=$(usb-off)
+echo "$OUTPUT_WRAPPER_OFF"
+if [[ "$OUTPUT_WRAPPER_OFF" != *"2-1 is now OFF."* ]]; then
+    echo "ERROR: bashrc usb-off wrapper output mismatch!" >&2
     exit 1
 fi
 
@@ -69,18 +81,18 @@ mkdir -p "$SYS_USB_DIR/usb1/power"
 echo "Unknown" > "$SYS_USB_DIR/usb1/manufacturer"
 echo "GiN mbH Logger" > "$SYS_USB_DIR/usb1/product"
 
-OUTPUT_ON2=$(usb-on)
+OUTPUT_ON2=$(./usb-on.sh)
 echo "$OUTPUT_ON2"
 if [[ "$OUTPUT_ON2" != *"USB1 is now ON."* ]]; then
-    echo "ERROR: usb-on product match mismatch!" >&2
+    echo "ERROR: usb-on.sh product match mismatch!" >&2
     exit 1
 fi
 
 # Test when no GiN mbH device is present
 rm -rf "$SYS_USB_DIR/usb1"
 echo "--- Testing device not found ---"
-if usb-on 2>/dev/null; then
-    echo "ERROR: usb-on should have failed when device not present!" >&2
+if ./usb-on.sh 2>/dev/null; then
+    echo "ERROR: usb-on.sh should have failed when device not present!" >&2
     exit 1
 fi
 
