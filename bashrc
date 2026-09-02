@@ -1,12 +1,27 @@
 # USB Power Control Functions
+# Convenience wrappers/macros in bashrc that execute standalone scripts usb-on.sh and usb-off.sh
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Turn on GiN mbH USB device power
 usb-on() {
-    echo disabled | sudo tee /sys/bus/usb/devices/usb1/power/wakeup > /dev/null
-    echo on | sudo tee /sys/bus/usb/devices/usb1/power/level > /dev/null
-    echo "USB1 is now ON."
+    if [ -x "$SCRIPT_DIR/usb-on.sh" ]; then
+        "$SCRIPT_DIR/usb-on.sh"
+    elif command -v usb-on.sh >/dev/null 2>&1; then
+        usb-on.sh
+    else
+        echo "usb-on.sh not found." >&2
+        return 1
+    fi
 }
 
+# Turn off / suspend GiN mbH USB device power
 usb-off() {
-    echo disabled | sudo tee /sys/bus/usb/devices/usb1/power/wakeup > /dev/null
-    echo suspend | sudo tee /sys/bus/usb/devices/usb1/power/level > /dev/null
-    echo "USB1 is now OFF."
+    if [ -x "$SCRIPT_DIR/usb-off.sh" ]; then
+        "$SCRIPT_DIR/usb-off.sh"
+    elif command -v usb-off.sh >/dev/null 2>&1; then
+        usb-off.sh
+    else
+        echo "usb-off.sh not found." >&2
+        return 1
+    fi
 }
